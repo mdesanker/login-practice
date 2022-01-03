@@ -5,6 +5,7 @@ const passport = require("passport");
 const localStrategy = require("passport-local").Strategy;
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
+const bcrypt = require("bcryptjs");
 
 const mongoDB =
   "mongodb+srv://login:loginpassword@cluster0.wp2s6.mongodb.net/login_practice?retryWrites=true&w=majority";
@@ -30,9 +31,15 @@ passport.use(
     User.findOne({ username: username }, (err, user) => {
       if (err) done(err);
       if (!user) done(null, false, { message: "Incorrect username" });
-      if (user.password !== password)
-        done(null, false, { message: "Incorrect password" });
-      return done(null, user);
+      bcrypt.compare(password, user.password, (err, res) => {
+        if (res) {
+          // Passwords match, log in
+          return done(null, user);
+        } else {
+          // Passwords don't match
+          return done(null, false, { message: "Incorrect password" });
+        }
+      });
     });
   })
 );
@@ -60,12 +67,15 @@ app.use(function (req, res, next) {
 app.get("/", (req, res) => res.render("index"));
 app.get("/sign-up", (req, res) => res.render("sign-up-form"));
 app.post("/sign-up", (req, res, next) => {
-  const user = new User({
-    username: req.body.username,
-    password: req.body.password,
-  }).save((err) => {
+  bcrypt.hash(req.body.password, 10, (err, hashedPassword) => {
     if (err) next(err);
-    res.redirect("/");
+    const user = new User({
+      username: req.body.username,
+      password: hashedPassword,
+    }).save((err) => {
+      if (err) next(err);
+      res.redirect("/");
+    });
   });
 });
 app.post(
