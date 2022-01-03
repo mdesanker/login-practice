@@ -31,9 +31,15 @@ passport.use(
     User.findOne({ username: username }, (err, user) => {
       if (err) done(err);
       if (!user) done(null, false, { message: "Incorrect username" });
-      if (user.password !== password)
-        done(null, false, { message: "Incorrect password" });
-      return done(null, user);
+      bcrypt.compare(password, user.password, (err, res) => {
+        if (res) {
+          // Passwords match, log in
+          return done(null, user);
+        } else {
+          // Passwords don't match
+          return done(null, false, { message: "Incorrect password" });
+        }
+      });
     });
   })
 );
